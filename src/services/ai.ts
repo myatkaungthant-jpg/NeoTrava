@@ -62,6 +62,7 @@ export const generateItinerary = async (
     [
       {
         "title": "Activity Name",
+        "description": "A 1-2 sentence detailed summary of this place/activity. Mention specific highlights, architecture, or why it matches the selected experiences.",
         "location_name": "Specific location or neighborhood (MUST be the exact name from TAT database if used, include province)",
         "cost_thb": estimated cost in THB (number),
         "is_verified_tat": true/false

@@ -148,12 +148,14 @@ export const ArchitectView: React.FC = () => {
           className="bg-white/70 backdrop-blur-xl rounded-3xl p-8 md:p-12 shadow-premium border border-emerald-50"
           onSubmit={handleGenerate}
         >
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-x-6 gap-y-10 items-end">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-x-6 gap-y-10 items-start">
             {/* Destination */}
             <div className="col-span-12 md:col-span-6 lg:col-span-3 flex flex-col gap-3 relative" ref={dropdownRef}>
-              <label className="text-[11px] font-bold tracking-wide uppercase text-emerald-900/40 px-1">
-                Destination
-              </label>
+              <div className="h-8 flex items-center px-1">
+                <label className="text-[11px] font-bold tracking-wide uppercase text-emerald-900/40">
+                  Destination
+                </label>
+              </div>
               <div 
                 className="relative group cursor-pointer"
                 onClick={() => setIsDropdownOpen(true)}
@@ -204,10 +206,12 @@ export const ArchitectView: React.FC = () => {
             </div>
 
             {/* Dates (Replaced Duration) */}
-            <div className="col-span-12 md:col-span-6 lg:col-span-4 flex flex-col gap-3">
-              <label className="text-[11px] font-bold tracking-wide uppercase text-emerald-900/40 px-1">
-                Travel Dates
-              </label>
+            <div className="col-span-12 md:col-span-6 lg:col-span-2 flex flex-col gap-3">
+              <div className="h-8 flex items-center px-1">
+                <label className="text-[11px] font-bold tracking-wide uppercase text-emerald-900/40">
+                  Travel Dates
+                </label>
+              </div>
               <div className="flex gap-2 h-14">
                 <div className="relative w-1/2 group">
                   <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-600/50 group-focus-within:text-emerald-600" size={14} />
@@ -233,9 +237,11 @@ export const ArchitectView: React.FC = () => {
 
             {/* Travelers */}
             <div className="col-span-12 md:col-span-6 lg:col-span-2 flex flex-col gap-3">
-              <label className="text-[11px] font-bold tracking-wide uppercase text-emerald-900/40 px-1">
-                Travelers
-              </label>
+              <div className="h-8 flex items-center px-1">
+                <label className="text-[11px] font-bold tracking-wide uppercase text-emerald-900/40">
+                  Travelers
+                </label>
+              </div>
               <div className="flex items-center bg-emerald-50/50 rounded-xl px-2 py-1.5 h-14">
                 <button 
                   type="button"
@@ -256,8 +262,8 @@ export const ArchitectView: React.FC = () => {
             </div>
 
             {/* Min/Max Budget */}
-            <div className="col-span-12 md:col-span-6 lg:col-span-3 flex flex-col gap-3">
-              <div className="flex justify-between items-center px-1">
+            <div className="col-span-12 md:col-span-6 lg:col-span-5 flex flex-col gap-3">
+              <div className="flex justify-between items-center px-1 h-8">
                 <label className="text-[11px] font-bold tracking-wide uppercase text-emerald-900/40">
                   Budget ({currency})
                 </label>
@@ -274,31 +280,50 @@ export const ArchitectView: React.FC = () => {
                   ))}
                 </div>
               </div>
-              <div className="flex gap-2 h-14 items-center">
-                <div className="relative w-1/2 h-full group">
-                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-emerald-900/40 text-[9px] font-bold tracking-widest group-focus-within:text-emerald-700">MIN</span>
-                  <input
-                    type="number"
-                    min={CURRENCIES[currency].min}
-                    max={maxBudget}
-                    step={CURRENCIES[currency].step}
-                    value={minBudget}
-                    onChange={(e) => setMinBudget(Number(e.target.value))}
-                    className="w-full h-full bg-emerald-50/50 rounded-xl border-none focus:ring-2 focus:ring-emerald-500 pl-10 pr-1 py-4 text-emerald-900 text-[13px] font-black outline-none"
-                  />
+              <div className="flex flex-col sm:flex-row gap-3 h-auto md:h-14 items-center">
+                <div className="relative w-full sm:w-1/2 h-full group">
+                  <div className="w-full h-full relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-900/40 text-[8px] font-bold tracking-widest pointer-events-none uppercase">MIN</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-900/40 font-bold text-xs pointer-events-none">{CURRENCIES[currency].symbol}</span>
+                    <input
+                      type="number"
+                      min={CURRENCIES[currency].min}
+                      max={maxBudget}
+                      step={CURRENCIES[currency].step}
+                      value={minBudget}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || 0;
+                        setMinBudget(Math.min(val, maxBudget));
+                      }}
+                      onBlur={() => {
+                        if (minBudget < CURRENCIES[currency].min) setMinBudget(CURRENCIES[currency].min);
+                      }}
+                      className="w-full h-full bg-emerald-50/50 rounded-xl border-none focus:ring-2 focus:ring-emerald-500 pl-10 pr-8 py-4 text-emerald-900 text-[14px] font-bold outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none transition-shadow"
+                    />
+                  </div>
                 </div>
-                <span className="text-emerald-900/20 font-black">-</span>
-                <div className="relative w-1/2 h-full group">
-                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-emerald-900/40 text-[9px] font-bold tracking-widest group-focus-within:text-emerald-700">MAX</span>
-                  <input
-                    type="number"
-                    min={minBudget}
-                    max={CURRENCIES[currency].max}
-                    step={CURRENCIES[currency].step}
-                    value={maxBudget}
-                    onChange={(e) => setMaxBudget(Number(e.target.value))}
-                    className="w-full h-full bg-emerald-50/50 rounded-xl border-none focus:ring-2 focus:ring-emerald-500 pl-11 pr-1 py-4 text-emerald-900 text-[13px] font-black outline-none"
-                  />
+                <div className="hidden sm:block text-emerald-900/20 font-black">-</div>
+                <div className="relative w-full sm:w-1/2 h-full group">
+                  <div className="w-full h-full relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-900/40 text-[8px] font-bold tracking-widest pointer-events-none uppercase">MAX</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-900/40 font-bold text-xs pointer-events-none">{CURRENCIES[currency].symbol}</span>
+                    <input
+                      type="number"
+                      min={minBudget}
+                      max={CURRENCIES[currency].max}
+                      step={CURRENCIES[currency].step}
+                      value={maxBudget}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || 0;
+                        setMaxBudget(Math.max(val, minBudget));
+                      }}
+                      onBlur={() => {
+                        if (maxBudget > CURRENCIES[currency].max) setMaxBudget(CURRENCIES[currency].max);
+                        if (maxBudget < minBudget) setMaxBudget(minBudget);
+                      }}
+                      className="w-full h-full bg-emerald-50/50 rounded-xl border-none focus:ring-2 focus:ring-emerald-500 pl-10 pr-8 py-4 text-emerald-900 text-[14px] font-bold outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none transition-shadow"
+                    />
+                  </div>
                 </div>
               </div>
             </div>

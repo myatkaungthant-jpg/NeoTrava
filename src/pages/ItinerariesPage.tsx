@@ -10,6 +10,7 @@ export default function ItinerariesPage() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadTrips() {
@@ -21,9 +22,13 @@ export default function ItinerariesPage() {
   }, []);
 
   const handleDelete = async (e: React.MouseEvent, tripId: string) => {
-    e.preventDefault(); // Prevent navigating to the card if wrapped in a Link
-    const confirmDelete = window.confirm("Are you sure you want to permanently delete this itinerary? This action cannot be undone.");
-    if (!confirmDelete) return;
+    e.preventDefault(); 
+    
+    // Custom confirmation state instead of window.confirm which gets blocked by some browsers
+    if (deletingId !== tripId) {
+      setDeletingId(tripId);
+      return;
+    }
 
     const success = await deleteTrip(tripId);
     if (success) {
@@ -31,6 +36,7 @@ export default function ItinerariesPage() {
     } else {
       alert("Failed to delete trip. Please try again.");
     }
+    setDeletingId(null);
   };
 
   const filteredTrips = trips.filter((t) => 
@@ -106,10 +112,11 @@ export default function ItinerariesPage() {
                     </div>
                     <button
                       onClick={(e) => handleDelete(e, trip.id)}
-                      className="w-10 h-10 rounded-full bg-error-container/50 hover:bg-error text-error hover:text-white flex items-center justify-center transition-colors border border-error/10 hover:shadow-lg"
+                      onMouseLeave={() => { if (deletingId === trip.id) setDeletingId(null); }}
+                      className={`h-10 rounded-full flex items-center justify-center transition-all border shadow-sm ${deletingId === trip.id ? 'px-4 bg-error text-white border-error w-auto' : 'w-10 bg-error-container/50 text-error hover:bg-error hover:text-white border-error/10 hover:shadow-lg'}`}
                       title="Delete Trip"
                     >
-                      <Trash2 size={18} />
+                      {deletingId === trip.id ? <span className="text-sm font-bold tracking-wide">Confirm Delete</span> : <Trash2 size={18} />}
                     </button>
                   </div>
                   

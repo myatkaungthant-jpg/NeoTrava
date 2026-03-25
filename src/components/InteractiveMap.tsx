@@ -33,7 +33,7 @@ const useGeocode = (address: string) => {
 const GeocodedMarker = ({ activity, isActive }: { activity: Activity, isActive: boolean }) => {
   // Use existing coords if present, otherwise try to geocode the location_name
   const geocodedCoords = useGeocode(activity.location_name + ", Thailand");
-  const position = (activity.latitude && activity.longitude) 
+  const position = (activity.latitude && activity.longitude)
     ? { lat: activity.latitude, lng: activity.longitude }
     : geocodedCoords;
 
@@ -103,19 +103,23 @@ const MapController = ({ activities, activeId, tripTitle }: { activities: Activi
   React.useEffect(() => {
     if (!map || !geocodingLib) return;
     const activeActivity = activities.find(a => a.id === activeId);
-    
+
     if (activeActivity) {
       if (activeActivity.latitude && activeActivity.longitude) {
-        map.panTo({ lat: activeActivity.latitude, lng: activeActivity.longitude });
-        map.setZoom(15);
+        map.moveCamera({
+          center: { lat: activeActivity.latitude, lng: activeActivity.longitude },
+          zoom: 14.5
+        });
       } else if (activeActivity.location_name) {
         // Geocode on the fly to center map
         const geocoder = new geocodingLib.Geocoder();
         geocoder.geocode({ address: activeActivity.location_name + ", Thailand" }, (results, status) => {
           if (status === "OK" && results && results[0]) {
             const location = results[0].geometry.location;
-            map.panTo({ lat: location.lat(), lng: location.lng() });
-            map.setZoom(15);
+            map.moveCamera({
+              center: { lat: location.lat(), lng: location.lng() },
+              zoom: 14.5
+            });
           }
         });
       }
@@ -125,8 +129,10 @@ const MapController = ({ activities, activeId, tripTitle }: { activities: Activi
       geocoder.geocode({ address: tripTitle + ", Thailand" }, (results, status) => {
         if (status === "OK" && results && results[0]) {
           const location = results[0].geometry.location;
-          map.panTo({ lat: location.lat(), lng: location.lng() });
-          map.setZoom(11); // broader zoom for trip overview
+          map.moveCamera({
+            center: { lat: location.lat(), lng: location.lng() },
+            zoom: 11
+          });
         }
       });
     }
@@ -154,13 +160,13 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             mapId="neotrava-curator-map"
           >
             <MapController activities={activities} activeId={activeActivityId} tripTitle={tripTitle} />
-            
+
             {/* Custom Map Pins via AdvancedMarker and Geocoding */}
             {activities.map((activity) => (
-              <GeocodedMarker 
-                key={activity.id} 
-                activity={activity} 
-                isActive={activeActivityId === activity.id} 
+              <GeocodedMarker
+                key={activity.id}
+                activity={activity}
+                isActive={activeActivityId === activity.id}
               />
             ))}
           </Map>
