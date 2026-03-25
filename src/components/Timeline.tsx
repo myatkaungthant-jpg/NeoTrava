@@ -8,14 +8,38 @@ interface TimelineProps {
   onActivityHover?: (id: string | null) => void;
 }
 
+const parseTimeValue = (timeStr: string) => {
+  const dayMatch = timeStr.match(/Day (\d+)/i);
+  const day = dayMatch ? parseInt(dayMatch[1], 10) : 0;
+  
+  const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  let hours = 0;
+  let minutes = 0;
+  
+  if (timeMatch) {
+    hours = parseInt(timeMatch[1], 10);
+    minutes = parseInt(timeMatch[2], 10);
+    const period = timeMatch[3].toUpperCase();
+    
+    if (period === 'PM' && hours !== 12) {
+      hours += 12;
+    } else if (period === 'AM' && hours === 12) {
+      hours = 0;
+    }
+  }
+  
+  // Return minutes from an arbitrary epoch (Day 0, 00:00)
+  return day * 24 * 60 + hours * 60 + minutes;
+};
+
 export const Timeline: React.FC<TimelineProps> = ({
   activities,
   activeActivityId,
   onActivityHover,
 }) => {
-  // Sort activities by time (lexical sort on the 'Day X, HH:MM' string works fine for simple chronological order)
+  // Sort activities chronologically by parsed time value
   const sortedActivities = [...activities].sort((a, b) => 
-    (a.start_time || "").localeCompare(b.start_time || "")
+    parseTimeValue(a.start_time || "") - parseTimeValue(b.start_time || "")
   );
 
   // Group by "Day X"

@@ -135,7 +135,7 @@ export default function ProfilePage() {
           <div className="relative group">
             <div 
               className={cn(
-                "w-48 h-64 rounded-xl overflow-hidden shadow-premium transition-transform duration-500 group-hover:scale-[1.02] cursor-pointer relative",
+                "w-56 h-56 rounded-3xl overflow-hidden shadow-premium transition-transform duration-500 group-hover:scale-[1.02] cursor-pointer relative",
                 uploading && "opacity-50"
               )}
               onClick={handleAvatarClick}
@@ -159,7 +159,7 @@ export default function ProfilePage() {
               onChange={handleAvatarChange}
             />
             <div 
-              className="absolute -bottom-4 -right-4 bg-emerald-900 p-4 rounded-full text-white shadow-premium cursor-pointer hover:scale-110 transition-transform"
+              className="absolute bottom-0 right-0 translate-x-1/4 translate-y-1/4 bg-emerald-900 p-4 rounded-full text-white shadow-premium cursor-pointer hover:scale-110 transition-transform z-20"
               onClick={() => setIsEditing(true)}
             >
               <Edit size={24} />
@@ -270,17 +270,17 @@ export default function ProfilePage() {
                     <span className="text-xs text-emerald-600 font-medium">Joined Mar 2024</span>
                   </div>
                 </div>
-                <div className="pt-8">
+                <div className="pt-8 flex flex-col gap-4 items-center">
                   <button 
                     onClick={() => setIsEditing(true)}
-                    className="w-full bg-emerald-900 text-white py-4 rounded-xl font-bold text-sm tracking-widest uppercase shadow-premium hover:opacity-90 transition-opacity active:scale-95 transition-all text-center"
+                    className="w-full max-w-[280px] bg-emerald-900 text-white py-4 rounded-xl font-bold text-sm tracking-widest uppercase shadow-premium hover:opacity-90 transition-opacity active:scale-95 transition-all text-center"
                   >
                     Edit Profile Details
                   </button>
                   
                   <button 
                     onClick={handleLogout}
-                    className="w-full bg-slate-100 text-slate-600 py-4 rounded-xl font-bold text-sm tracking-widest uppercase hover:bg-red-50 hover:text-red-600 transition-all active:scale-95 text-center flex items-center justify-center gap-2"
+                    className="w-full max-w-[280px] bg-slate-100 text-slate-600 py-4 rounded-xl font-bold text-sm tracking-widest uppercase hover:bg-red-50 hover:text-red-600 transition-all active:scale-95 text-center flex items-center justify-center gap-2"
                   >
                     <LogOut size={16} />
                     Sign Out

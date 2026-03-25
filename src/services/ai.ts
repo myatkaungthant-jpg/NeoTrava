@@ -25,10 +25,16 @@ export async function fetchTATPlaces(destination: string, limit = 40) {
 
 export const generateItinerary = async (
   destination: string,
-  duration: number,
+  startDate: string,
+  endDate: string,
   travelers: number,
-  budget: number
+  minBudget: number,
+  maxBudget: number,
+  experiences: string[]
 ): Promise<Partial<Activity>[]> => {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const duration = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
   // Optimize keyword to get broader TAT results
   const optimizedKeyword = destination.split(' ')[0].replace('&', '');
   const tatPlaces = await fetchTATPlaces(optimizedKeyword);
@@ -40,7 +46,12 @@ export const generateItinerary = async (
 
   const prompt = `
     You are an expert luxury travel concierge. Create a detailed, day-by-day itinerary for a trip to ${destination}.
-    The trip is for ${duration} days, for ${travelers} travelers, with a total budget of ${budget} THB.
+    The trip is from ${startDate} to ${endDate} (Total: ${duration} days), for ${travelers} travelers.
+    The total budget for this trip must be strictly between ${minBudget} THB and ${maxBudget} THB.
+    
+    CRITICAL INSTRUCTION - THEMED EXPERIENCES:
+    The user highlighted the following preferred experiences: [${experiences.length > 0 ? experiences.join(', ') : 'General luxury, relaxed pace'}].
+    You MUST heavily center the itinerary venues and activities around these exact themes.
     
     CRITICAL CONTEXT (TAT DATABASE):
     You MUST prioritize venues from the following verified Tourism Authority of Thailand database if available. 

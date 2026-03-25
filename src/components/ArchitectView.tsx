@@ -1,19 +1,80 @@
 "use client";
 
-import { useState } from "react";
-import { Sparkles, MapPin, Calendar, ArrowRight, Loader2 } from "lucide-react";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { Sparkles, MapPin, Calendar, ArrowRight, Loader2, Search, ChevronDown, Trees, Utensils, Landmark, ShoppingBag, Moon, Mountain, ScrollText, Palette, Palmtree } from "lucide-react";
 import { generateItinerary } from "@/services/ai";
 import { createTrip, createActivity } from "@/services/data";
 import { useNavigate } from "react-router-dom";
+import { THAILAND_DESTINATIONS } from "@/lib/destinations";
+
+const CURRENCIES = {
+  THB: { symbol: '฿', rate: 1, min: 1000, max: 200000, step: 1000 },
+  USD: { symbol: '$', rate: 0.03, min: 30, max: 6000, step: 50 },
+  EUR: { symbol: '€', rate: 0.027, min: 30, max: 5500, step: 50 },
+  GBP: { symbol: '£', rate: 0.023, min: 25, max: 4500, step: 25 },
+};
+type CurrencyCode = keyof typeof CURRENCIES;
+
+const EXPERIENCES = [
+  { id: "nature", label: "Nature", icon: <Trees size={24} className="text-emerald-600" /> },
+  { id: "food", label: "Food", icon: <Utensils size={24} className="text-orange-500" /> },
+  { id: "culture", label: "Culture", icon: <Landmark size={24} className="text-stone-500" /> },
+  { id: "shopping", label: "Shopping", icon: <ShoppingBag size={24} className="text-pink-500" /> },
+  { id: "nightlife", label: "Nightlife", icon: <Moon size={24} className="text-indigo-500" /> },
+  { id: "adventure", label: "Adventure", icon: <Mountain size={24} className="text-red-500" /> },
+  { id: "history", label: "History", icon: <ScrollText size={24} className="text-amber-700" /> },
+  { id: "art", label: "Art", icon: <Palette size={24} className="text-purple-500" /> },
+  { id: "beaches", label: "Beaches", icon: <Palmtree size={24} className="text-cyan-500" /> },
+];
 
 export const ArchitectView: React.FC = () => {
   const navigate = useNavigate();
   const [destination, setDestination] = useState("Chiang Mai");
-  const [duration, setDuration] = useState(7);
+  
+  const todayStr = new Date().toISOString().split('T')[0];
+  const nextWeekStr = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  const [startDate, setStartDate] = useState(todayStr);
+  const [endDate, setEndDate] = useState(nextWeekStr);
+  
   const [travelers, setTravelers] = useState(2);
-  const [budget, setBudget] = useState(150000);
+  const [currency, setCurrency] = useState<CurrencyCode>("THB");
+  const [minBudget, setMinBudget] = useState(5000);
+  const [maxBudget, setMaxBudget] = useState(30000);
+  const [selectedExperiences, setSelectedExperiences] = useState<string[]>([]);
+  
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filteredDestinations = useMemo(() => {
+    return THAILAND_DESTINATIONS.filter(d => d.toLowerCase().includes(searchQuery.toLowerCase()));
+  }, [searchQuery]);
+
+  const handleCurrencyChange = (newCurrency: CurrencyCode) => {
+    const toThb = (val: number) => val / CURRENCIES[currency].rate;
+    const fromThb = (val: number) => {
+      let num = Math.round(val * CURRENCIES[newCurrency].rate);
+      num = Math.max(CURRENCIES[newCurrency].min, Math.min(CURRENCIES[newCurrency].max, num));
+      return Math.round(num / CURRENCIES[newCurrency].step) * CURRENCIES[newCurrency].step;
+    };
+    
+    setMinBudget(fromThb(toThb(minBudget)));
+    setMaxBudget(fromThb(toThb(maxBudget)));
+    setCurrency(newCurrency);
+  };
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,7 +83,9 @@ export const ArchitectView: React.FC = () => {
 
     try {
       // 1. Generate activities via AI
-      const generatedActivities = await generateItinerary(destination, duration, travelers, budget);
+      const minThb = Math.round(minBudget / CURRENCIES[currency].rate);
+      const maxThb = Math.round(maxBudget / CURRENCIES[currency].rate);
+      const generatedActivities = await generateItinerary(destination, startDate, endDate, travelers, minThb, maxThb, selectedExperiences);
       
       if (!generatedActivities || generatedActivities.length === 0) {
         throw new Error("Failed to generate activities.");
@@ -85,53 +148,95 @@ export const ArchitectView: React.FC = () => {
           className="bg-white/70 backdrop-blur-xl rounded-3xl p-8 md:p-12 shadow-premium border border-emerald-50"
           onSubmit={handleGenerate}
         >
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-x-6 gap-y-10 items-end">
             {/* Destination */}
-            <div className="flex flex-col gap-3">
+            <div className="col-span-12 md:col-span-6 lg:col-span-3 flex flex-col gap-3 relative" ref={dropdownRef}>
               <label className="text-[11px] font-bold tracking-wide uppercase text-emerald-900/40 px-1">
                 Destination
               </label>
-              <div className="relative group">
+              <div 
+                className="relative group cursor-pointer"
+                onClick={() => setIsDropdownOpen(true)}
+              >
                 <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-600" size={20} />
-                <select 
-                  value={destination}
-                  onChange={(e) => setDestination(e.target.value)}
-                  className="w-full bg-emerald-50/50 rounded-xl border-none focus:ring-2 focus:ring-emerald-500 pl-12 pr-4 py-4 text-emerald-900 font-medium appearance-none outline-none"
-                >
-                  <option>Chiang Mai</option>
-                  <option>Chiang Rai</option>
-                  <option>Phuket & Islands</option>
-                  <option>Bangkok Exclusive</option>
-                  <option>All North</option>
-                </select>
+                <div className="w-full bg-emerald-50/50 rounded-xl border-none focus:ring-2 focus:ring-emerald-500 pl-12 pr-10 py-4 text-emerald-900 font-medium whitespace-nowrap overflow-hidden text-ellipsis h-14 flex items-center">
+                  {destination}
+                </div>
+                <ChevronDown className={`absolute right-4 top-1/2 -translate-y-1/2 text-emerald-600/60 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} size={16} />
               </div>
+
+              {/* Dropdown Menu */}
+              {isDropdownOpen && (
+                <div className="absolute top-[100%] mt-2 left-0 w-full md:min-w-[320px] bg-white rounded-2xl shadow-premium border border-emerald-50 z-50 overflow-hidden flex flex-col max-h-[350px]">
+                  <div className="p-3 border-b border-emerald-50 relative bg-slate-50/50">
+                    <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-emerald-400" size={16} />
+                    <input 
+                      type="text" 
+                      placeholder="Search regions, cities, islands..."
+                      className="w-full pl-10 pr-4 py-2.5 bg-white border border-emerald-100 rounded-xl text-sm text-emerald-900 focus:ring-2 focus:ring-emerald-500 outline-none shadow-sm transition-shadow"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      autoFocus
+                    />
+                  </div>
+                  <div className="overflow-y-auto flex-1 p-2 scrollbar-thin scrollbar-thumb-emerald-200 scrollbar-track-transparent">
+                    {filteredDestinations.length > 0 ? filteredDestinations.map(dest => (
+                      <div 
+                        key={dest}
+                        className={`px-4 py-3 cursor-pointer rounded-xl text-sm font-medium transition-colors ${destination === dest ? 'bg-emerald-500 text-white shadow-md' : 'hover:bg-emerald-50 text-emerald-950'}`}
+                        onClick={() => {
+                          setDestination(dest);
+                          setIsDropdownOpen(false);
+                          setSearchQuery("");
+                        }}
+                      >
+                        {dest}
+                      </div>
+                    )) : (
+                      <div className="px-4 py-8 text-center text-emerald-900/40 text-sm font-medium flex flex-col items-center gap-2">
+                        <MapPin size={24} className="opacity-20" />
+                        No destinations found.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Duration */}
-            <div className="flex flex-col gap-3">
+            {/* Dates (Replaced Duration) */}
+            <div className="col-span-12 md:col-span-6 lg:col-span-4 flex flex-col gap-3">
               <label className="text-[11px] font-bold tracking-wide uppercase text-emerald-900/40 px-1">
-                Duration
+                Travel Dates
               </label>
-              <div className="relative">
-                <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-600" size={20} />
-                <input
-                  type="number"
-                  min="1"
-                  max="30"
-                  value={duration}
-                  onChange={(e) => setDuration(Number(e.target.value))}
-                  className="w-full bg-emerald-50/50 rounded-xl border-none focus:ring-2 focus:ring-emerald-500 pl-12 pr-4 py-4 text-emerald-900 font-medium outline-none"
-                  placeholder="Number of days"
-                />
+              <div className="flex gap-2 h-14">
+                <div className="relative w-1/2 group">
+                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-600/50 group-focus-within:text-emerald-600" size={14} />
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full h-full bg-emerald-50/50 rounded-xl border-none focus:ring-2 focus:ring-emerald-500 pl-8 pr-1 py-4 text-emerald-900 text-[12px] font-bold outline-none uppercase"
+                  />
+                </div>
+                <div className="relative w-1/2 group">
+                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-600/50 group-focus-within:text-emerald-600" size={14} />
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    min={startDate}
+                    className="w-full h-full bg-emerald-50/50 rounded-xl border-none focus:ring-2 focus:ring-emerald-500 pl-8 pr-1 py-4 text-emerald-900 text-[12px] font-bold outline-none uppercase"
+                  />
+                </div>
               </div>
             </div>
 
             {/* Travelers */}
-            <div className="flex flex-col gap-3">
+            <div className="col-span-12 md:col-span-6 lg:col-span-2 flex flex-col gap-3">
               <label className="text-[11px] font-bold tracking-wide uppercase text-emerald-900/40 px-1">
                 Travelers
               </label>
-              <div className="flex items-center bg-emerald-50/50 rounded-xl px-2 py-1.5 h-full">
+              <div className="flex items-center bg-emerald-50/50 rounded-xl px-2 py-1.5 h-14">
                 <button 
                   type="button"
                   onClick={() => travelers > 1 && setTravelers(travelers - 1)}
@@ -150,27 +255,94 @@ export const ArchitectView: React.FC = () => {
               </div>
             </div>
 
-            {/* Budget */}
-            <div className="flex flex-col gap-3">
-              <label className="text-[11px] font-bold tracking-wide uppercase text-emerald-900/40 px-1">
-                Budget (THB)
-              </label>
-              <div className="relative flex flex-col justify-center h-full gap-2 pt-2">
-                <input
-                  type="range"
-                  min="10000"
-                  max="500000"
-                  step="5000"
-                  value={budget}
-                  onChange={(e) => setBudget(Number(e.target.value))}
-                  className="w-full accent-emerald-600 h-1.5 bg-emerald-100 rounded-lg appearance-none cursor-pointer"
-                />
-                <div className="flex justify-between text-xs font-semibold text-emerald-900/40 px-1">
-                  <span>10k</span>
-                  <span className="text-emerald-600">{budget.toLocaleString()} THB</span>
-                  <span>500k</span>
+            {/* Min/Max Budget */}
+            <div className="col-span-12 md:col-span-6 lg:col-span-3 flex flex-col gap-3">
+              <div className="flex justify-between items-center px-1">
+                <label className="text-[11px] font-bold tracking-wide uppercase text-emerald-900/40">
+                  Budget ({currency})
+                </label>
+                <div className="flex bg-emerald-50/70 p-1 rounded-xl border border-emerald-100/50">
+                  {(Object.keys(CURRENCIES) as CurrencyCode[]).map(c => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => handleCurrencyChange(c)}
+                      className={`text-[9px] font-bold px-2 py-1 rounded-lg transition-all ${currency === c ? 'bg-white text-emerald-700 shadow-sm ring-1 ring-emerald-200' : 'text-emerald-600/60 hover:text-emerald-900 hover:bg-emerald-100/50'}`}
+                    >
+                      {c}
+                    </button>
+                  ))}
                 </div>
               </div>
+              <div className="flex gap-2 h-14 items-center">
+                <div className="relative w-1/2 h-full group">
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-emerald-900/40 text-[9px] font-bold tracking-widest group-focus-within:text-emerald-700">MIN</span>
+                  <input
+                    type="number"
+                    min={CURRENCIES[currency].min}
+                    max={maxBudget}
+                    step={CURRENCIES[currency].step}
+                    value={minBudget}
+                    onChange={(e) => setMinBudget(Number(e.target.value))}
+                    className="w-full h-full bg-emerald-50/50 rounded-xl border-none focus:ring-2 focus:ring-emerald-500 pl-10 pr-1 py-4 text-emerald-900 text-[13px] font-black outline-none"
+                  />
+                </div>
+                <span className="text-emerald-900/20 font-black">-</span>
+                <div className="relative w-1/2 h-full group">
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-emerald-900/40 text-[9px] font-bold tracking-widest group-focus-within:text-emerald-700">MAX</span>
+                  <input
+                    type="number"
+                    min={minBudget}
+                    max={CURRENCIES[currency].max}
+                    step={CURRENCIES[currency].step}
+                    value={maxBudget}
+                    onChange={(e) => setMaxBudget(Number(e.target.value))}
+                    className="w-full h-full bg-emerald-50/50 rounded-xl border-none focus:ring-2 focus:ring-emerald-500 pl-11 pr-1 py-4 text-emerald-900 text-[13px] font-black outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Experiences Grid */}
+          <div className="mt-12 pt-10 border-t border-emerald-50/60 w-full mb-4">
+            <div className="mb-6 flex justify-between items-end px-2">
+              <div>
+                <h3 className="text-emerald-900 font-bold text-lg flex items-center gap-2">
+                  <Sparkles size={18} className="text-emerald-500" />
+                  Curated Experiences
+                </h3>
+                <p className="text-emerald-600/60 text-sm mt-1 font-medium">Select the themes you want to focus on for this itinerary</p>
+              </div>
+              <span className="text-[10px] font-black tracking-widest text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full uppercase">
+                {selectedExperiences.length} Selected
+              </span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+              {EXPERIENCES.map(exp => {
+                const isSelected = selectedExperiences.includes(exp.label);
+                return (
+                  <div 
+                    key={exp.id}
+                    onClick={() => {
+                      if (isSelected) {
+                        setSelectedExperiences(selectedExperiences.filter(e => e !== exp.label));
+                      } else {
+                        setSelectedExperiences([...selectedExperiences, exp.label]);
+                      }
+                    }}
+                    className={`relative cursor-pointer rounded-2xl flex flex-col items-center justify-center p-5 transition-all duration-300 border-2 select-none group overflow-hidden ${isSelected ? 'border-emerald-500 bg-emerald-50/80 shadow-md transform scale-[1.02]' : 'border-emerald-50/50 bg-slate-50 hover:bg-emerald-50 hover:border-emerald-200 hover:scale-[1.01]'}`}
+                  >
+                    <div className={`transition-transform duration-300 mb-3 ${isSelected ? 'scale-110 drop-shadow-md' : 'group-hover:scale-110 opacity-70 group-hover:opacity-100'}`}>
+                       {exp.icon}
+                    </div>
+                    <span className={`font-bold tracking-wide text-xs uppercase ${isSelected ? 'text-emerald-950' : 'text-emerald-900/50 group-hover:text-emerald-900/80'}`}>{exp.label}</span>
+                    
+                    {/* Active dot indicator */}
+                    <div className={`absolute top-3 right-3 w-1.5 h-1.5 rounded-full transition-all duration-300 ${isSelected ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.9)] scale-100' : 'bg-transparent scale-0'}`} />
+                  </div>
+                )
+              })}
             </div>
           </div>
           
