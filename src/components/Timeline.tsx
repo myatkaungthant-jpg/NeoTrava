@@ -79,7 +79,6 @@ export const Timeline: React.FC<TimelineProps> = ({
             {/* Timeline Grid */}
             <div className="relative ml-4">
               {/* Vertical Timeline Line */}
-              <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-gradient-to-b from-primary/30 via-primary/10 to-transparent ml-[11px]" />
 
               {dayActivities.map((activity) => (
                 <div

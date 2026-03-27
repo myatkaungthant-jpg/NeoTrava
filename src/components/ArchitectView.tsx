@@ -5,6 +5,7 @@ import { Sparkles, MapPin, Calendar, ArrowRight, Loader2, Search, ChevronDown, T
 import { generateItinerary } from "@/services/ai";
 import { createTrip, createActivity } from "@/services/data";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
 import { THAILAND_DESTINATIONS } from "@/lib/destinations";
 import { SUB_DESTINATIONS } from "@/lib/subDestinations";
 
@@ -30,6 +31,7 @@ const EXPERIENCES = [
 
 export const ArchitectView: React.FC = () => {
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
   const [destination, setDestination] = useState("Chiang Mai");
   const [selectedSubDestinations, setSelectedSubDestinations] = useState<string[]>([]);
   
@@ -49,6 +51,7 @@ export const ArchitectView: React.FC = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isSubDropdownOpen, setIsSubDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [subSearchQuery, setSubSearchQuery] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
   const subDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -68,6 +71,11 @@ export const ArchitectView: React.FC = () => {
   const filteredDestinations = useMemo(() => {
     return THAILAND_DESTINATIONS.filter(d => d.toLowerCase().includes(searchQuery.toLowerCase()));
   }, [searchQuery]);
+
+  const filteredSubDestinations = useMemo(() => {
+    if (!destination || !SUB_DESTINATIONS[destination]) return [];
+    return SUB_DESTINATIONS[destination].filter(s => s.toLowerCase().includes(subSearchQuery.toLowerCase()));
+  }, [destination, subSearchQuery]);
 
   const handleCurrencyChange = (newCurrency: CurrencyCode) => {
     const toThb = (val: number) => val / CURRENCIES[currency].rate;
@@ -96,12 +104,12 @@ export const ArchitectView: React.FC = () => {
       }
 
       // 2. Create the Trip in Supabase
-      const newTrip = await createTrip({
+      const { trip: newTrip, error: tripError } = await createTrip({
         title: `Curated ${destination} Escape`,
       });
 
-      if (!newTrip) {
-        throw new Error("Failed to save the trip.");
+      if (tripError || !newTrip) {
+        throw new Error(tripError || "Failed to save the trip.");
       }
 
       // 3. Save all activities safely mapping only allowed properties
@@ -193,6 +201,7 @@ export const ArchitectView: React.FC = () => {
                         onClick={() => {
                           setDestination(dest);
                           setSelectedSubDestinations([]); // Reset districts when province changes
+                          setSubSearchQuery(""); // Reset sub-search when province changes
                           setIsDropdownOpen(false);
                           setSearchQuery("");
                         }}
@@ -233,8 +242,19 @@ export const ArchitectView: React.FC = () => {
               {/* Sub-Dropdown Menu (Multi-select) */}
               {isSubDropdownOpen && destination && (
                 <div className="absolute top-[100%] mt-2 left-0 w-full md:min-w-[320px] bg-white rounded-2xl shadow-premium border border-emerald-50 z-50 overflow-hidden flex flex-col max-h-[350px]">
-                  <div className="p-3 border-b border-emerald-50 bg-slate-50/50 flex justify-between items-center">
-                    <span className="text-[10px] font-black tracking-widest text-emerald-900/40 uppercase">Select Multiple Districts</span>
+                  <div className="p-3 border-b border-emerald-50 relative bg-slate-50/50">
+                    <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-emerald-400" size={16} />
+                    <input 
+                      type="text" 
+                      placeholder="Search districts, areas..."
+                      className="w-full pl-10 pr-4 py-2.5 bg-white border border-emerald-100 rounded-xl text-sm text-emerald-900 focus:ring-2 focus:ring-emerald-500 outline-none shadow-sm transition-shadow"
+                      value={subSearchQuery}
+                      onChange={(e) => setSubSearchQuery(e.target.value)}
+                      autoFocus
+                    />
+                  </div>
+                  <div className="p-2 border-b border-emerald-50 bg-white/50 flex justify-between items-center px-4">
+                    <span className="text-[10px] font-black tracking-widest text-emerald-900/40 uppercase">Select Multiple Districts / Areas</span>
                     <button 
                       type="button"
                       onClick={() => setSelectedSubDestinations([])}
@@ -244,7 +264,7 @@ export const ArchitectView: React.FC = () => {
                     </button>
                   </div>
                   <div className="overflow-y-auto flex-1 p-2 scrollbar-thin scrollbar-thumb-emerald-200 scrollbar-track-transparent">
-                    {(SUB_DESTINATIONS[destination] || ["Muang District", "Main Hub", "Rural Areas"]).map(sub => {
+                    {filteredSubDestinations.length > 0 ? filteredSubDestinations.map(sub => {
                       const isSelected = selectedSubDestinations.includes(sub);
                       return (
                         <div 
@@ -262,7 +282,12 @@ export const ArchitectView: React.FC = () => {
                           {isSelected && <Sparkles size={14} className="text-emerald-500" />}
                         </div>
                       );
-                    })}
+                    }) : (
+                      <div className="px-4 py-8 text-center text-emerald-900/40 text-sm font-medium flex flex-col items-center gap-2">
+                        <Search size={24} className="opacity-20" />
+                        No areas found in {destination}.
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -409,17 +434,24 @@ export const ArchitectView: React.FC = () => {
             </div>
           </div>
           
+          {!authLoading && !user && (
+            <div className="mt-6 p-4 rounded-xl bg-amber-50 text-amber-700 text-sm font-semibold text-center border border-amber-100 flex items-center justify-center gap-2">
+              <MapPin size={16} />
+              Please sign in to save and view your interactive itineraries.
+            </div>
+          )}
+
           {error && (
             <div className="mt-6 p-4 rounded-xl bg-red-50 text-red-600 text-sm font-semibold text-center border border-red-100">
               {error}
             </div>
           )}
           
-          <div className="mt-12 flex justify-center">
+          <div className="mt-12 flex flex-col items-center gap-4">
             <button 
               type="submit"
-              disabled={isGenerating}
-              className="group relative px-10 py-5 bg-emerald-900 text-white rounded-2xl font-bold text-lg shadow-premium hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:scale-100 transition-all flex items-center gap-3"
+              disabled={isGenerating || authLoading || !user}
+              className="group relative px-10 py-5 bg-emerald-900 text-white rounded-2xl font-bold text-lg shadow-premium hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed transition-all flex items-center gap-3"
             >
               {isGenerating ? (
                 <>
@@ -433,6 +465,15 @@ export const ArchitectView: React.FC = () => {
                 </>
               )}
             </button>
+            {!authLoading && !user && (
+              <button 
+                type="button"
+                onClick={() => navigate('/login')}
+                className="text-emerald-700 font-bold text-sm hover:underline"
+              >
+                Sign In Now
+              </button>
+            )}
           </div>
         </form>
       </section>

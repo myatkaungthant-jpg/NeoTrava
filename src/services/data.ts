@@ -78,9 +78,15 @@ export async function updateProfile(userId: string, profile: any): Promise<void>
   }
 }
 
-export async function createTrip(trip: Partial<Trip>): Promise<Trip | null> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+export async function createTrip(trip: Partial<Trip>): Promise<{ trip: Trip | null, error?: string }> {
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError) {
+    console.error("Auth error:", authError);
+    return { trip: null, error: `Authentication failed: ${authError.message}. Try signing in again.` };
+  }
+  if (!user) {
+    return { trip: null, error: "You must be signed in to save a trip." };
+  }
 
   const { data, error } = await supabase
     .from("trips")
@@ -90,10 +96,10 @@ export async function createTrip(trip: Partial<Trip>): Promise<Trip | null> {
 
   if (error) {
     console.error("Error creating trip:", error);
-    return null;
+    return { trip: null, error: `Database error: ${error.message}` };
   }
 
-  return data as Trip;
+  return { trip: data as Trip };
 }
 
 export async function createActivity(activity: Partial<Activity>): Promise<Activity | null> {
