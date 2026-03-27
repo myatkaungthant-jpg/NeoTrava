@@ -25,17 +25,23 @@ export async function fetchTATPlaces(destination: string, limit = 40) {
 
 export const generateItinerary = async (
   destination: string,
+  subDestinations: string[],
   startDate: string,
   endDate: string,
   travelers: number,
-  minBudget: number,
-  maxBudget: number,
+  budget: number,
   experiences: string[]
 ): Promise<Partial<Activity>[]> => {
   const start = new Date(startDate);
   const end = new Date(endDate);
   const duration = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-  // Optimize keyword to get broader TAT results
+  
+  // Combine destination and sub-destinations for the AI prompt
+  const fullDestination = subDestinations.length > 0 
+    ? `${destination} (${subDestinations.join(', ')})` 
+    : destination;
+
+  // Optimize keyword for TAT - use the primary destination (province)
   const optimizedKeyword = destination.split(' ')[0].replace('&', '');
   const tatPlaces = await fetchTATPlaces(optimizedKeyword);
   console.log(`Fetched ${tatPlaces.length} TAT verified venues for ${optimizedKeyword}`);
@@ -45,9 +51,15 @@ export const generateItinerary = async (
   ).slice(0, 30).join('\n'); // Top 30 venues for context
 
   const prompt = `
-    You are an expert luxury travel concierge. Create a detailed, day-by-day itinerary for a trip to ${destination}.
+    CRITICAL INSTRUCTION - GEOGRAPHIC EFFICIENCY & SEQUENCING:
+    - **Logical Progression**: The itinerary MUST follow a logical geographic route (e.g., North to South, East to West, or a sensible loop). Avoid "zig-zagging" or backtracking between distant locations.
+    - **Clustering**: Group activities that are geographically close to each other on the same day to minimize travel time.
+    - **Travel Awareness**: Account for transit time. Do not schedule distant activities on the same day unless it is a necessary travel day.
+    - **Area Focus**: If specific districts or sub-destinations are mentioned (${subDestinations.join(', ')}), prioritize activities within those exact clusters.
+    
+    You are an expert luxury travel concierge. Create a detailed, day-by-day itinerary for a trip to ${fullDestination}.
     The trip is from ${startDate} to ${endDate} (Total: ${duration} days), for ${travelers} travelers.
-    The total budget for this trip must be strictly between ${minBudget} THB and ${maxBudget} THB.
+    The total budget for this trip must be strictly under ${budget} THB.
     
     CRITICAL INSTRUCTION - THEMED EXPERIENCES:
     The user highlighted the following preferred experiences: [${experiences.length > 0 ? experiences.join(', ') : 'General luxury, relaxed pace'}].
@@ -62,7 +74,7 @@ export const generateItinerary = async (
     [
       {
         "title": "Activity Name",
-        "description": "A 1-2 sentence detailed summary of this place/activity. Mention specific highlights, architecture, or why it matches the selected experiences.",
+        "description": "A 1-2 sentence detailed summary of this place/activity. Mention specific highlights, architecture, or why it matches the selected experiences. Mention why this location makes sense in the current day's sequence.",
         "location_name": "Specific location or neighborhood (MUST be the exact name from TAT database if used, include province)",
         "cost_thb": estimated cost in THB (number),
         "is_verified_tat": true/false

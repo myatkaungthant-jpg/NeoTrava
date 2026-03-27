@@ -36,7 +36,8 @@ export const TopNavBar = () => {
   return (
     <nav className="fixed top-0 w-full z-50 flex justify-between items-center px-8 py-4 bg-white/70 backdrop-blur-xl shadow-premium border-b border-outline-variant/10">
       <div className="flex items-center gap-8">
-        <Link to="/" className="text-2xl font-black text-emerald-900 italic tracking-tighter hover:opacity-80 transition-opacity">
+        <Link to="/" className="text-2xl font-black text-emerald-900 italic tracking-tighter hover:opacity-80 transition-opacity flex items-center gap-2">
+          <img src="/NeoTrava.png" alt="NeoTrava Logo" className="h-8 w-auto" />
           NeoTrava
         </Link>
         <div className="h-8 w-px bg-outline-variant/30 hidden md:block"></div>

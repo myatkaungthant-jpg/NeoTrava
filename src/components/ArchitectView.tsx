@@ -6,12 +6,13 @@ import { generateItinerary } from "@/services/ai";
 import { createTrip, createActivity } from "@/services/data";
 import { useNavigate } from "react-router-dom";
 import { THAILAND_DESTINATIONS } from "@/lib/destinations";
+import { SUB_DESTINATIONS } from "@/lib/subDestinations";
 
 const CURRENCIES = {
-  THB: { symbol: '฿', rate: 1, min: 1000, max: 200000, step: 1000 },
-  USD: { symbol: '$', rate: 0.03, min: 30, max: 6000, step: 50 },
-  EUR: { symbol: '€', rate: 0.027, min: 30, max: 5500, step: 50 },
-  GBP: { symbol: '£', rate: 0.023, min: 25, max: 4500, step: 25 },
+  THB: { symbol: '฿', rate: 1, min: 1000, max: 200000, step: 1 },
+  USD: { symbol: '$', rate: 0.03, min: 30, max: 6000, step: 1 },
+  EUR: { symbol: '€', rate: 0.027, min: 30, max: 5500, step: 1 },
+  GBP: { symbol: '£', rate: 0.023, min: 25, max: 4500, step: 1 },
 };
 type CurrencyCode = keyof typeof CURRENCIES;
 
@@ -30,6 +31,7 @@ const EXPERIENCES = [
 export const ArchitectView: React.FC = () => {
   const navigate = useNavigate();
   const [destination, setDestination] = useState("Chiang Mai");
+  const [selectedSubDestinations, setSelectedSubDestinations] = useState<string[]>([]);
   
   const todayStr = new Date().toISOString().split('T')[0];
   const nextWeekStr = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -38,21 +40,25 @@ export const ArchitectView: React.FC = () => {
   
   const [travelers, setTravelers] = useState(2);
   const [currency, setCurrency] = useState<CurrencyCode>("THB");
-  const [minBudget, setMinBudget] = useState(5000);
-  const [maxBudget, setMaxBudget] = useState(30000);
+  const [budget, setBudget] = useState(0);
   const [selectedExperiences, setSelectedExperiences] = useState<string[]>([]);
   
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isSubDropdownOpen, setIsSubDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const subDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
+      }
+      if (subDropdownRef.current && !subDropdownRef.current.contains(event.target as Node)) {
+        setIsSubDropdownOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -71,8 +77,7 @@ export const ArchitectView: React.FC = () => {
       return Math.round(num / CURRENCIES[newCurrency].step) * CURRENCIES[newCurrency].step;
     };
     
-    setMinBudget(fromThb(toThb(minBudget)));
-    setMaxBudget(fromThb(toThb(maxBudget)));
+    setBudget(fromThb(toThb(budget)));
     setCurrency(newCurrency);
   };
 
@@ -83,9 +88,8 @@ export const ArchitectView: React.FC = () => {
 
     try {
       // 1. Generate activities via AI
-      const minThb = Math.round(minBudget / CURRENCIES[currency].rate);
-      const maxThb = Math.round(maxBudget / CURRENCIES[currency].rate);
-      const generatedActivities = await generateItinerary(destination, startDate, endDate, travelers, minThb, maxThb, selectedExperiences);
+      const maxThb = Math.round(budget / CURRENCIES[currency].rate);
+      const generatedActivities = await generateItinerary(destination, selectedSubDestinations, startDate, endDate, travelers, maxThb, selectedExperiences);
       
       if (!generatedActivities || generatedActivities.length === 0) {
         throw new Error("Failed to generate activities.");
@@ -150,10 +154,10 @@ export const ArchitectView: React.FC = () => {
         >
           <div className="grid grid-cols-1 md:grid-cols-12 gap-x-6 gap-y-10 items-start">
             {/* Destination */}
-            <div className="col-span-12 md:col-span-6 lg:col-span-3 flex flex-col gap-3 relative" ref={dropdownRef}>
+            <div className="col-span-12 md:col-span-6 lg:col-span-4 flex flex-col gap-3 relative" ref={dropdownRef}>
               <div className="h-8 flex items-center px-1">
                 <label className="text-[11px] font-bold tracking-wide uppercase text-emerald-900/40">
-                  Destination
+                  Province / Region
                 </label>
               </div>
               <div 
@@ -161,8 +165,8 @@ export const ArchitectView: React.FC = () => {
                 onClick={() => setIsDropdownOpen(true)}
               >
                 <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-600" size={20} />
-                <div className="w-full bg-emerald-50/50 rounded-xl border-none focus:ring-2 focus:ring-emerald-500 pl-12 pr-10 py-4 text-emerald-900 font-medium whitespace-nowrap overflow-hidden text-ellipsis h-14 flex items-center">
-                  {destination}
+                <div className="w-full bg-emerald-50/50 rounded-xl border-none focus:ring-2 focus:ring-emerald-500 pl-12 pr-10 py-4 text-emerald-900 font-medium whitespace-nowrap overflow-hidden text-ellipsis h-14 flex items-center inline-block min-w-0">
+                  {destination || "Select Province"}
                 </div>
                 <ChevronDown className={`absolute right-4 top-1/2 -translate-y-1/2 text-emerald-600/60 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} size={16} />
               </div>
@@ -188,6 +192,7 @@ export const ArchitectView: React.FC = () => {
                         className={`px-4 py-3 cursor-pointer rounded-xl text-sm font-medium transition-colors ${destination === dest ? 'bg-emerald-500 text-white shadow-md' : 'hover:bg-emerald-50 text-emerald-950'}`}
                         onClick={() => {
                           setDestination(dest);
+                          setSelectedSubDestinations([]); // Reset districts when province changes
                           setIsDropdownOpen(false);
                           setSearchQuery("");
                         }}
@@ -205,8 +210,92 @@ export const ArchitectView: React.FC = () => {
               )}
             </div>
 
+            {/* Sub-destination (Specific District/Area) */}
+            <div className="col-span-12 md:col-span-6 lg:col-span-5 flex flex-col gap-3 relative" ref={subDropdownRef}>
+              <div className="h-8 flex items-center px-1">
+                <label className={`text-[11px] font-bold tracking-wide uppercase transition-colors ${!destination ? 'text-emerald-900/10' : 'text-emerald-900/40'}`}>
+                  Specific Areas (Optional)
+                </label>
+              </div>
+              <div 
+                className={`relative group cursor-pointer transition-opacity ${!destination ? 'opacity-40 cursor-not-allowed' : 'opacity-100'}`}
+                onClick={() => destination && setIsSubDropdownOpen(!isSubDropdownOpen)}
+              >
+                <Search className={`absolute left-4 top-1/2 -translate-y-1/2 ${!destination ? 'text-slate-300' : 'text-emerald-600'}`} size={20} />
+                <div className={`w-full bg-emerald-50/50 rounded-xl border-none focus:ring-2 focus:ring-emerald-500 pl-12 pr-10 py-4 text-emerald-900 font-medium whitespace-nowrap overflow-hidden text-ellipsis h-14 flex items-center`}>
+                  {selectedSubDestinations.length > 0 
+                    ? selectedSubDestinations.join(", ") 
+                    : destination ? "All Districts" : "Select Province First"}
+                </div>
+                <ChevronDown className={`absolute right-4 top-1/2 -translate-y-1/2 transition-transform duration-200 ${isSubDropdownOpen ? 'rotate-180' : ''} ${!destination ? 'text-slate-300' : 'text-emerald-600/60'}`} size={16} />
+              </div>
+
+              {/* Sub-Dropdown Menu (Multi-select) */}
+              {isSubDropdownOpen && destination && (
+                <div className="absolute top-[100%] mt-2 left-0 w-full md:min-w-[320px] bg-white rounded-2xl shadow-premium border border-emerald-50 z-50 overflow-hidden flex flex-col max-h-[350px]">
+                  <div className="p-3 border-b border-emerald-50 bg-slate-50/50 flex justify-between items-center">
+                    <span className="text-[10px] font-black tracking-widest text-emerald-900/40 uppercase">Select Multiple Districts</span>
+                    <button 
+                      type="button"
+                      onClick={() => setSelectedSubDestinations([])}
+                      className="text-[9px] font-bold text-emerald-600 hover:text-emerald-900"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                  <div className="overflow-y-auto flex-1 p-2 scrollbar-thin scrollbar-thumb-emerald-200 scrollbar-track-transparent">
+                    {(SUB_DESTINATIONS[destination] || ["Muang District", "Main Hub", "Rural Areas"]).map(sub => {
+                      const isSelected = selectedSubDestinations.includes(sub);
+                      return (
+                        <div 
+                          key={sub}
+                          className={`px-4 py-3 cursor-pointer rounded-xl text-sm font-medium transition-colors flex items-center justify-between ${isSelected ? 'bg-emerald-50 text-emerald-900' : 'hover:bg-emerald-50 text-emerald-950'}`}
+                          onClick={() => {
+                            if (isSelected) {
+                              setSelectedSubDestinations(selectedSubDestinations.filter(s => s !== sub));
+                            } else {
+                              setSelectedSubDestinations([...selectedSubDestinations, sub]);
+                            }
+                          }}
+                        >
+                          {sub}
+                          {isSelected && <Sparkles size={14} className="text-emerald-500" />}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Travelers */}
+            <div className="col-span-12 md:col-span-6 lg:col-span-3 flex flex-col gap-3">
+              <div className="h-8 flex items-center px-1">
+                <label className="text-[11px] font-bold tracking-wide uppercase text-emerald-900/40">
+                  Travelers
+                </label>
+              </div>
+              <div className="flex items-center bg-emerald-50/50 rounded-xl px-2 py-1.5 h-14">
+                <button 
+                  type="button"
+                  onClick={() => travelers > 1 && setTravelers(travelers - 1)}
+                  className="w-10 h-10 flex items-center justify-center bg-white rounded-lg text-emerald-600 shadow-sm hover:bg-emerald-50 transition-colors"
+                >
+                  -
+                </button>
+                <div className="flex-1 text-center font-bold text-lg text-emerald-900">{travelers}</div>
+                <button 
+                  type="button"
+                  onClick={() => setTravelers(travelers + 1)}
+                  className="w-10 h-10 flex items-center justify-center bg-white rounded-lg text-emerald-600 shadow-sm hover:bg-emerald-50 transition-colors"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
             {/* Dates (Replaced Duration) */}
-            <div className="col-span-12 md:col-span-6 lg:col-span-2 flex flex-col gap-3">
+            <div className="col-span-12 md:col-span-6 lg:col-span-6 flex flex-col gap-3">
               <div className="h-8 flex items-center px-1">
                 <label className="text-[11px] font-bold tracking-wide uppercase text-emerald-900/40">
                   Travel Dates
@@ -235,37 +324,11 @@ export const ArchitectView: React.FC = () => {
               </div>
             </div>
 
-            {/* Travelers */}
-            <div className="col-span-12 md:col-span-6 lg:col-span-2 flex flex-col gap-3">
-              <div className="h-8 flex items-center px-1">
-                <label className="text-[11px] font-bold tracking-wide uppercase text-emerald-900/40">
-                  Travelers
-                </label>
-              </div>
-              <div className="flex items-center bg-emerald-50/50 rounded-xl px-2 py-1.5 h-14">
-                <button 
-                  type="button"
-                  onClick={() => travelers > 1 && setTravelers(travelers - 1)}
-                  className="w-10 h-10 flex items-center justify-center bg-white rounded-lg text-emerald-600 shadow-sm hover:bg-emerald-50 transition-colors"
-                >
-                  -
-                </button>
-                <div className="flex-1 text-center font-bold text-lg text-emerald-900">{travelers}</div>
-                <button 
-                  type="button"
-                  onClick={() => setTravelers(travelers + 1)}
-                  className="w-10 h-10 flex items-center justify-center bg-white rounded-lg text-emerald-600 shadow-sm hover:bg-emerald-50 transition-colors"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-
-            {/* Min/Max Budget */}
-            <div className="col-span-12 md:col-span-6 lg:col-span-5 flex flex-col gap-3">
+            {/* Budget */}
+            <div className="col-span-12 md:col-span-6 lg:col-span-3 flex flex-col gap-3">
               <div className="flex justify-between items-center px-1 h-8">
                 <label className="text-[11px] font-bold tracking-wide uppercase text-emerald-900/40">
-                  Budget ({currency})
+                  Trip Budget ({currency})
                 </label>
                 <div className="flex bg-emerald-50/70 p-1 rounded-xl border border-emerald-100/50">
                   {(Object.keys(CURRENCIES) as CurrencyCode[]).map(c => (
@@ -280,50 +343,25 @@ export const ArchitectView: React.FC = () => {
                   ))}
                 </div>
               </div>
-              <div className="flex flex-col sm:flex-row gap-3 h-auto md:h-14 items-center">
-                <div className="relative w-full sm:w-1/2 h-full group">
-                  <div className="w-full h-full relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-900/40 text-[8px] font-bold tracking-widest pointer-events-none uppercase">MIN</span>
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-900/40 font-bold text-xs pointer-events-none">{CURRENCIES[currency].symbol}</span>
-                    <input
-                      type="number"
-                      min={CURRENCIES[currency].min}
-                      max={maxBudget}
-                      step={CURRENCIES[currency].step}
-                      value={minBudget}
-                      onChange={(e) => {
-                        const val = parseInt(e.target.value) || 0;
-                        setMinBudget(Math.min(val, maxBudget));
-                      }}
-                      onBlur={() => {
-                        if (minBudget < CURRENCIES[currency].min) setMinBudget(CURRENCIES[currency].min);
-                      }}
-                      className="w-full h-full bg-emerald-50/50 rounded-xl border-none focus:ring-2 focus:ring-emerald-500 pl-10 pr-8 py-4 text-emerald-900 text-[14px] font-bold outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none transition-shadow"
-                    />
-                  </div>
-                </div>
-                <div className="hidden sm:block text-emerald-900/20 font-black">-</div>
-                <div className="relative w-full sm:w-1/2 h-full group">
-                  <div className="w-full h-full relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-900/40 text-[8px] font-bold tracking-widest pointer-events-none uppercase">MAX</span>
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-900/40 font-bold text-xs pointer-events-none">{CURRENCIES[currency].symbol}</span>
-                    <input
-                      type="number"
-                      min={minBudget}
-                      max={CURRENCIES[currency].max}
-                      step={CURRENCIES[currency].step}
-                      value={maxBudget}
-                      onChange={(e) => {
-                        const val = parseInt(e.target.value) || 0;
-                        setMaxBudget(Math.max(val, minBudget));
-                      }}
-                      onBlur={() => {
-                        if (maxBudget > CURRENCIES[currency].max) setMaxBudget(CURRENCIES[currency].max);
-                        if (maxBudget < minBudget) setMaxBudget(minBudget);
-                      }}
-                      className="w-full h-full bg-emerald-50/50 rounded-xl border-none focus:ring-2 focus:ring-emerald-500 pl-10 pr-8 py-4 text-emerald-900 text-[14px] font-bold outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none transition-shadow"
-                    />
-                  </div>
+              <div className="relative w-full h-14 group">
+                <div className="w-full h-full relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-900/40 text-[10px] font-black tracking-widest pointer-events-none uppercase">BUDGET</span>
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-emerald-900/40 font-bold text-lg pointer-events-none">{CURRENCIES[currency].symbol}</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={CURRENCIES[currency].max}
+                    step={CURRENCIES[currency].step}
+                    value={budget === 0 ? "" : budget}
+                    placeholder="0"
+                    onChange={(e) => {
+                      setBudget(parseInt(e.target.value) || 0);
+                    }}
+                    onBlur={() => {
+                      if (budget > CURRENCIES[currency].max) setBudget(CURRENCIES[currency].max);
+                    }}
+                    className="w-full h-full bg-emerald-50/50 rounded-xl border-none focus:ring-2 focus:ring-emerald-500 pl-20 pr-12 py-4 text-emerald-900 text-lg font-black outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none transition-shadow"
+                  />
                 </div>
               </div>
             </div>
