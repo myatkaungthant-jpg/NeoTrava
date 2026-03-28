@@ -95,6 +95,32 @@ export async function createTrip(trip: Partial<Trip>): Promise<{ trip: Trip | nu
     .single();
 
   if (error) {
+    // Resilient fallback for missing columns
+    if (
+      error.message?.includes("destination") || 
+      error.message?.includes("subtitle") || 
+      error.message?.includes("start_date") || 
+      error.message?.includes("end_date")
+    ) {
+      console.warn("Retrying createTrip with minimal fields (schema mismatch):", error.message);
+      const minimalTrip = { 
+        title: trip.title || "Curated Journey", 
+        user_id: user.id 
+      };
+      
+      const { data: retryData, error: retryError } = await supabase
+        .from("trips")
+        .insert([minimalTrip])
+        .select()
+        .single();
+
+      if (retryError) {
+        console.error("Error creating trip (retry):", retryError);
+        return { trip: null, error: `Database error: ${retryError.message}` };
+      }
+      return { trip: retryData as Trip };
+    }
+    
     console.error("Error creating trip:", error);
     return { trip: null, error: `Database error: ${error.message}` };
   }
@@ -110,6 +136,22 @@ export async function createActivity(activity: Partial<Activity>): Promise<Activ
     .single();
 
   if (error) {
+    // If the error is about missing latitude/longitude columns, retry without them
+    if (error.message?.includes("latitude") || error.message?.includes("longitude")) {
+      console.warn("Retrying createActivity without coordinates (columns may not exist yet):", error.message);
+      const { latitude, longitude, ...activityWithoutCoords } = activity as any;
+      const { data: retryData, error: retryError } = await supabase
+        .from("activities")
+        .insert([activityWithoutCoords])
+        .select()
+        .single();
+
+      if (retryError) {
+        console.error("Error creating activity (retry):", retryError);
+        return null;
+      }
+      return retryData as Activity;
+    }
     console.error("Error creating activity:", error);
     return null;
   }

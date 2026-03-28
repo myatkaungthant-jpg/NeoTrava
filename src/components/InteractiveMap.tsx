@@ -31,11 +31,9 @@ const useGeocode = (address: string) => {
 
 // Component that handles geocoding and rendering the marker
 const GeocodedMarker = ({ activity, isActive }: { activity: Activity, isActive: boolean }) => {
-  // Use existing coords if present, otherwise try to geocode the location_name
+  // Always geocode from location_name for maximum accuracy
   const geocodedCoords = useGeocode(activity.location_name + ", Thailand");
-  const position = (activity.latitude && activity.longitude)
-    ? { lat: activity.latitude, lng: activity.longitude }
-    : geocodedCoords;
+  const position = geocodedCoords;
 
   if (!position) return null;
 
@@ -99,32 +97,45 @@ const GeocodedMarker = ({ activity, isActive }: { activity: Activity, isActive: 
 const MapController = ({ activities, activeId, tripTitle }: { activities: Activity[], activeId?: string | null, tripTitle?: string }) => {
   const map = useMap();
   const geocodingLib = useMapsLibrary('geocoding');
+  const [hasFittedBounds, setHasFittedBounds] = React.useState(false);
 
   React.useEffect(() => {
     if (!map || !geocodingLib) return;
     const activeActivity = activities.find(a => a.id === activeId);
 
     if (activeActivity) {
-      if (activeActivity.latitude && activeActivity.longitude) {
-        map.moveCamera({
-          center: { lat: activeActivity.latitude, lng: activeActivity.longitude },
-          zoom: 14.5
-        });
-      } else if (activeActivity.location_name) {
-        // Geocode on the fly to center map
+      // When user clicks a specific activity, geocode and zoom into it
+      if (activeActivity.location_name) {
         const geocoder = new geocodingLib.Geocoder();
         geocoder.geocode({ address: activeActivity.location_name + ", Thailand" }, (results, status) => {
           if (status === "OK" && results && results[0]) {
             const location = results[0].geometry.location;
-            map.moveCamera({
-              center: { lat: location.lat(), lng: location.lng() },
-              zoom: 14.5
-            });
+            map.panTo({ lat: location.lat(), lng: location.lng() });
+            map.setZoom(14.5);
           }
         });
       }
-    } else if (tripTitle) {
-      // Default center based on the overall trip destination
+    } else if (!hasFittedBounds && activities.length > 0) {
+      // On initial load: geocode all activities and fit bounds
+      const geocoder = new geocodingLib.Geocoder();
+      const bounds = new google.maps.LatLngBounds();
+      let resolved = 0;
+
+      activities.forEach(a => {
+        if (!a.location_name) { resolved++; return; }
+        geocoder.geocode({ address: a.location_name + ", Thailand" }, (results, status) => {
+          resolved++;
+          if (status === "OK" && results && results[0]) {
+            bounds.extend(results[0].geometry.location);
+          }
+          if (resolved === activities.length && !bounds.isEmpty()) {
+            map.fitBounds(bounds, { top: 80, right: 40, bottom: 40, left: 40 });
+            setHasFittedBounds(true);
+          }
+        });
+      });
+    } else if (!hasFittedBounds && tripTitle) {
+      // Fallback: geocode trip title
       const geocoder = new geocodingLib.Geocoder();
       geocoder.geocode({ address: tripTitle + ", Thailand" }, (results, status) => {
         if (status === "OK" && results && results[0]) {
@@ -135,8 +146,9 @@ const MapController = ({ activities, activeId, tripTitle }: { activities: Activi
           });
         }
       });
+      setHasFittedBounds(true);
     }
-  }, [map, activeId, activities, geocodingLib, tripTitle]);
+  }, [map, activeId, activities, geocodingLib, tripTitle, hasFittedBounds]);
 
   return null;
 };

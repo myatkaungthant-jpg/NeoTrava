@@ -117,7 +117,11 @@ export const TopNavBar = () => {
                               <MapPin size={10} /> {trip.destination || "Thailand"}
                             </span>
                             <span className="flex items-center gap-1 font-medium">
-                              <Calendar size={10} /> 7 Days
+                              <Calendar size={10} /> {
+                                trip.start_date && trip.end_date
+                                  ? `${Math.max(1, Math.ceil((new Date(trip.end_date).getTime() - new Date(trip.start_date).getTime()) / (1000 * 60 * 60 * 24)) + 1)} Days`
+                                  : "—"
+                              }
                             </span>
                           </div>
                         </Link>

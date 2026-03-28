@@ -97,33 +97,39 @@ export const ArchitectView: React.FC = () => {
     try {
       // 1. Generate activities via AI
       const maxThb = Math.round(budget / CURRENCIES[currency].rate);
-      const generatedActivities = await generateItinerary(destination, selectedSubDestinations, startDate, endDate, travelers, maxThb, selectedExperiences);
+      const result = await generateItinerary(destination, selectedSubDestinations, startDate, endDate, travelers, maxThb, selectedExperiences);
       
-      if (!generatedActivities || generatedActivities.length === 0) {
+      if (!result.activities || result.activities.length === 0) {
         throw new Error("Failed to generate activities.");
       }
 
       // 2. Create the Trip in Supabase
       const { trip: newTrip, error: tripError } = await createTrip({
-        title: `Curated ${destination} Escape`,
+        title: result.title,
+        subtitle: result.subtitle,
+        start_date: startDate,
+        end_date: endDate,
+        destination: destination,
       });
 
       if (tripError || !newTrip) {
         throw new Error(tripError || "Failed to save the trip.");
       }
 
-      // 3. Save all activities safely mapping only allowed properties
-      const activitiesPromises = generatedActivities.map(activity => 
-        createActivity({
+      // 3. Save all activities (map will geocode location_name at render time)
+      const activitiesPromises = result.activities.map((activity) => {
+        const locName = activity.location_name || activity.title || destination;
+        
+        return createActivity({
           trip_id: newTrip.id,
           title: activity.title || "Curated Experience",
           description: activity.description || "A wonderful experience hand-picked for your journey.",
-          location_name: activity.location_name || destination,
+          location_name: locName,
           start_time: activity.start_time || "TBD",
           cost_thb: Number(activity.cost_thb) || 0,
           is_verified_tat: !!activity.is_verified_tat,
-        })
-      );
+        });
+      });
       
       await Promise.all(activitiesPromises);
 
