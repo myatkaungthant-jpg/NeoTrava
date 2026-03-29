@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { TopNavBar } from "@/components/TopNavBar";
 import { getTrips, deleteTrip } from "@/services/data";
 import { Trip } from "@/types";
 import { Calendar, MapPin, Search, Trash2, ArrowRight } from "lucide-react";
@@ -45,7 +44,6 @@ export default function ItinerariesPage() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col font-sans">
-      <TopNavBar />
       
       <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-32 md:py-40 relative z-10">
         

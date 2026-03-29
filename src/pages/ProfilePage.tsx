@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Edit, Diamond, Map, MessageSquare, ExternalLink, Loader2, Zap, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { TopNavBar } from "@/components/TopNavBar";
 import { supabase } from "@/lib/supabase";
 import { getProfile, updateProfile } from "@/services/data";
 import { uploadAvatar } from "@/services/storage";
@@ -127,8 +126,6 @@ export default function ProfilePage() {
 
   return (
     <main className="min-h-screen bg-background flex flex-col pt-[88px]">
-      <TopNavBar />
-      
       <div className="pb-40 px-6 max-w-screen-2xl mx-auto mt-12 w-full">
         {/* Profile Header */}
         <section className="mb-20 flex flex-col md:flex-row items-end gap-12">
